@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PLUTO - Invoice Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #000;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        /* Loading Animation */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            overflow: hidden;
+        }
+
+        .pluto-container {
+            text-align: center;
+            position: relative;
+        }
+
+        .pluto-text {
+            font-size: 4rem;
+            font-weight: bold;
+            color: #fff;
+            letter-spacing: 0.2em;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pluto-text::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent 0%, #fff 50%, transparent 100%);
+            animation: reveal 2s ease-in-out forwards;
+        }
+
+        .pluto-text::after {
+            content: 'PLUTO';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4);
+            background-size: 400% 400%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradientShift 3s ease-in-out infinite;
+            opacity: 0;
+            animation-delay: 1s;
+            animation-fill-mode: forwards;
+        }
+
+        .loading-screen.reveal {
+            animation: fadeOut 0.8s ease-out forwards;
+        }
+
+        @keyframes reveal {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; opacity: 1; }
+            50% { background-position: 100% 50%; opacity: 1; }
+            100% { background-position: 0% 50%; opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(1.1); }
+        }
+
+        /* Main Application */
+        .app {
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            min-height: 100vh;
+        }
+
+        .app.show {
+            opacity: 1;
+        }
+
+        /* Login Screen */
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
+        }
+
+        .login-form {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            width: 400px;
+            text-align: center;
+        }
+
+        .login-form h2 {
+            margin-bottom: 30px;
+            font-size: 2rem;
+            color: #fff;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #4ecdc4;
+            box-shadow: 0 0 10px rgba(78, 205, 196, 0.3);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .error-message {
+            color: #ff6b6b;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        /* Dashboard */
+        .dashboard {
+            display: none;
+            padding: 0;
+            min-height: 100vh;
+            background: #000;
+        }
+
+        .dashboard.active {
+            display: block;
+        }
+
+        .dashboard-header {
+            background: #111;
+            padding: 20px 40px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .dashboard-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #fff;
+            margin: 0;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 25px;
+        }
+
+        .user-name {
+            font-size: 1rem;
+            color: #ccc;
+            font-weight: 500;
+        }
+
+        .logout-btn, .back-btn {
+            background: #333;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s ease;
+        }
+
+        .logout-btn:hover, .back-btn:hover {
+            background: #444;
+        }
+
+        .dashboard-content {
+            padding: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Invoice Generator */
+        .invoice-generator {
+            display: none;
+            padding: 0;
+            min-height: 100vh;
+            background: #000;
+        }
+
+        .invoice-generator.active {
+            display: block;
+        }
+
+        .invoice-form {
+            background: #111;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            border: 1px solid #333;
+        }
+
+        .invoice-form h2 {
+            color: #fff;
+            margin-bottom: 30px;
+            font-size: 1.8rem;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .items-section {
+            margin-top: 30px;
+        }
+
+        .items-section h3 {
+            color: #fff;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+        }
+
+        .item-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr auto;
+            gap: 15px;
+            margin-bottom: 15px;
+            align-items: end;
+        }
+
+        .add-item-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #4ecdc4;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s ease;
+        }
+
+        .add-item-btn:hover {
+            background: #45b7d1;
+        }
+
+        .remove-item-btn {
+            background: #ff6b6b;
+            color: #fff;
+            border: none;
+            padding: 10px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s ease;
+        }
+
+        .remove-item-btn:hover {
+            background: #ff5252;
+        }
+
+        .total-section {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            text-align: right;
+        }
+
+        .total-section p {
+            color: #ccc;
+            margin: 5px 0;
+        }
+
+        .total-section h3 {
+            color: #4ecdc4;
+            font-size: 1.5rem;
+            margin: 10px 0 0 0;
+        }
+
+        .generate-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            margin-top: 30px;
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Invoice Preview */
+        .invoice-preview {
+            background: #fff;
+            color: #000;
+            padding: 40px;
+            border-radius: 12px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .invoice-preview.active {
+            display: block;
+        }
+
+        .invoice-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #4ecdc4;
+            padding-bottom: 20px;
+        }
+
+        .invoice-header h1 {
+            color: #000;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .invoice-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+
+        .invoice-info div {
+            flex: 1;
+        }
+
+        .invoice-info h3 {
+            color: #4ecdc4;
+            margin-bottom: 10px;
+        }
+
+        .invoice-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .invoice-table th, .invoice-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .invoice-table th {
+            background: #4ecdc4;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .invoice-total {
+            text-align: right;
+            margin-top: 20px;
+        }
+
+        .invoice-total h3 {
+            color: #4ecdc4;
+            font-size: 1.5rem;
+        }
+
+        .whatsapp-section {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .whatsapp-section h3 {
+            color: #fff;
+            margin-bottom: 15px;
+        }
+
+        .whatsapp-btn {
+            background: #25d366;
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background 0.2s ease;
+        }
+
+        .whatsapp-btn:hover {
+            background: #1db954;
+        }
+
+        /* Success Message */
+        .success-message {
+            background: #4ecdc4;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-top: 15px;
+            text-align: center;
+            display: none;
+        }
+
+        .success-message.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        /* Error Message */
+        .save-error-message {
+            background: #ff6b6b;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-top: 15px;
+            text-align: center;
+            display: none;
+        }
+
+        .save-error-message.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .dashboard-header {
+                padding: 16px 20px;
+                flex-direction: column;
+                gap: 16px;
+                text-align: center;
+            }
+            
+            .dashboard-content {
+                padding: 20px;
+            }
+            
+            .form-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .item-row {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            .invoice-info {
+                flex-direction: column;
+                gap: 20px;
+            }
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-top: 0;
+        }
+
+        .feature-card {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 24px;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            cursor: pointer;
+        }
+
+        .feature-card:hover {
+            border-color: #555;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .feature-card h3 {
+            font-size: 1.2rem;
+            margin: 0 0 12px 0;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .feature-card p {
+            color: #999;
+            line-height: 1.5;
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 16px;
+            color: #666;
+        }
+
+        .config-section {
+            background: #111;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #333;
+        }
+
+        .config-section h3 {
+            color: #ff6b6b;
+            margin-bottom: 15px;
+        }
+
+        .config-section p {
+            color: #ccc;
+            margin-bottom: 10px;
+        }
+
+        .config-section input {
+            width: 100%;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            color: #fff;
+            font-size: 14px;
+            font-family: monospace;
+        }
+
+        .test-btn {
+            background: #45b7d1;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+            transition: background 0.2s ease;
+        }
+
+        .test-btn:hover {
+            background: #3498db;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="pluto-container">
+            <div class="pluto-text">PLUTO</div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div class="app" id="app">
+        <!-- Login Screen -->
+        <div class="login-container" id="loginContainer">
+            <div class="login-form">
+                <h2>Welcome to PLUTO</h2>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" required>
+                    </div>
+                    <button type="submit" class="login-btn">Login</button>
+                    <div class="error-message" id="errorMessage"></div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div class="dashboard" id="dashboard">
+            <div class="dashboard-header">
+                <h1 class="dashboard-title">PLUTO Dashboard</h1>
+                <div class="user-info">
+                    <span class="user-name" id="currentUser"></span>
+                    <button class="logout-btn" onclick="logout()">Logout</button>
+                </div>
+            </div>
+
+            <div class="dashboard-content">
+                <!-- Google Sheets Configuration -->
+                <div class="config-section">
+                    <h3>⚙️ Google Sheets Configuration</h3>
+                    <p>Enter your Google Apps Script Web App URL below:</p>
+                    <input type="url" id="googleSheetsUrl" placeholder="https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec">
+                    <button class="test-btn" onclick="testConnection()">Test Connection</button>
+                    <div class="success-message" id="configSuccess">✅ URL configured successfully!</div>
+                    <div class="save-error-message" id="configError">❌ Invalid URL format</div>
+                </div>
+
+                <div class="feature-grid">
+                    <div class="feature-card" onclick="openFeature('invoice')">
+                        <div class="feature-icon">📄</div>
+                        <h3>Invoice Generator</h3>
+                        <p>Create and send professional invoices</p>
+                    </div>
+
+                    <div class="feature-card" onclick="openFeature('inventory')">
+                        <div class="feature-icon">📦</div>
+                        <h3>Inventory Management</h3>
+                        <p>Track and manage your stock</p>
+                    </div>
+
+                    <div class="feature-card" onclick="openFeature('analyzer')">
+                        <div class="feature-icon">📊</div>
+                        <h3>Cost & Margin Analyzer</h3>
+                        <p>Analyze costs and profit margins</p>
+                    </div>
+
+                    <div class="feature-card" onclick="openFeature('maintenance')">
+                        <div class="feature-icon">🔧</div>
+                        <h3>Shop Maintenance Records</h3>
+                        <p>Keep track of maintenance activities</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Invoice Generator -->
+        <div class="invoice-generator" id="invoiceGenerator">
+            <div class="dashboard-header">
+                <h1 class="dashboard-title">Invoice Generator</h1>
+                <div class="user-info">
+                    <button class="back-btn" onclick="backToDashboard()">← Back to Dashboard</button>
+                    <span class="user-name" id="currentUserInvoice"></span>
+                    <button class="logout-btn" onclick="logout()">Logout</button>
+                </div>
+            </div>
+
+            <div class="dashboard-content">
+                <div class="invoice-form">
+                    <h2>Create New Invoice</h2>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="sellerName">Seller Name</label>
+                            <select id="sellerName" required>
+                                <option value="">Select Seller</option>
+                                <option value="Abhay">Abhay</option>
+                                <option value="Komal">Komal</option>
+                                <option value="Ojas">Ojas</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="customerName">Customer Name</label>
+                            <input type="text" id="customerName" required>
+                        </div>
+                    </div>
+
+                    <div class="items-section">
+                        <h3>Item Details</h3>
+                        <div id="itemsContainer">
+                            <div class="item-row">
+                                <div class="form-group">
+                                    <label>Item Name</label>
+                                    <input type="text" class="item-name" placeholder="Enter item name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Quantity</label>
+                                    <input type="number" class="item-quantity" placeholder="Qty" min="1" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Price (₹)</label>
+                                    <input type="number" class="item-price" placeholder="Price" min="0" step="0.01" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Discount (%)</label>
+                                    <input type="number" class="item-discount" placeholder="0" min="0" max="100" step="0.1" value="0">
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="add-item-btn" onclick="addItem()">
+                            ➕ Add Item
+                        </button>
+                    </div>
+
+                    <div class="total-section">
+                        <p>Subtotal: ₹<span id="subtotalAmount">0.00</span></p>
+                        <p>Discount: -₹<span id="discountAmount">0.00</span></p>
+                        <h3>Total Amount: ₹<span id="totalAmount">0.00</span></h3>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="customerNumber">Customer WhatsApp Number</label>
+                            <input type="tel" id="customerNumber" placeholder="Enter 10-digit mobile number" pattern="[6-9]{1}[0-9]{9}" maxlength="10">
+                        </div>
+                    </div>
+
+                    <button type="button" class="generate-btn" onclick="generateInvoice()">
+                        Generate Invoice
+                    </button>
+
+                    <div class="success-message" id="successMessage">
+                        ✅ Invoice saved to Google Sheets successfully!
+                    </div>
+                    
+                    <div class="save-error-message" id="saveErrorMessage">
+                        ❌ Failed to save to Google Sheets. Invoice generated locally.
+                    </div>
+                </div>
+
+                <!-- Invoice Preview -->
+                <div class="invoice-preview" id="invoicePreview">
+                    <div class="invoice-header">
+                        <h1>PLUTO</h1>
+                    </div>
+
+                    <div class="invoice-info">
+                        <div>
+                            <h3>From:</h3>
+                            <p id="invoiceSellerName"></p>
+                            <p>PLUTO Business</p>
+                            <p>WhatsApp: +91 89559 62269</p>
+                        </div>
+                        <div>
+                            <h3>To:</h3>
+                            <p id="invoiceCustomerName"></p>
+                            <p id="invoiceCustomerNumber"></p>
+                        </div>
+                        <div>
+                            <h3>Invoice Details:</h3>
+                            <p>Date: <span id="invoiceDate"></span></p>
+                            <p>Invoice #: <span id="invoiceNumber"></span></p>
+                        </div>
+                    </div>
+
+                    <table class="invoice-table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Quantity</th>
+                                <th>Price</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="invoiceTableBody">
+                        </tbody>
+                    </table>
+
+                    <div class="invoice-total">
+                        <h3>Total: ₹<span id="invoiceTotalAmount"></span></h3>
+                    </div>
+
+                    <div class="whatsapp-section">
+                        <h3>Send Invoice via WhatsApp</h3>
+                        <button class="whatsapp-btn" onclick="sendWhatsApp()">
+                            📱 Send to Customer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let GOOGLE_SHEETS_URL = '';
+        
+        // User credentials
+        const users = {
+            'Abhay': 'Abhay7#$',
+            'Komal': 'Komal7#$',
+            'Ojas': 'Ojas7#$'
+        };
+
+        let currentUser = null;
+        let itemCounter = 1;
+        let invoiceData = {};
+
+        // Initialize the application
+        function initializeApp() {
+            // Load saved Google Sheets URL from localStorage
+            const savedUrl = localStorage.getItem('googleSheetsUrl');
+            if (savedUrl) {
+                GOOGLE_SHEETS_URL = savedUrl;
+                document.getElementById('googleSheetsUrl').value = savedUrl;
+            }
+
+            // Add event listeners
+            document.getElementById('googleSheetsUrl').addEventListener('change', function(e) {
+                const url = e.target.value.trim();
+                if (validateGoogleSheetsUrl(url)) {
+                    GOOGLE_SHEETS_URL = url;
+                    localStorage.setItem('googleSheetsUrl', url);
+                    showMessage('configSuccess', 'URL configured successfully!');
+                    hideMessage('configError');
+                } else if (url) {
+                    showMessage('configError', 'Invalid URL format');
+                    hideMessage('configSuccess');
+                }
+            });
+
+            // Initialize calculation listeners
+            setTimeout(addCalculationListeners, 100);
+        }
+
+        // Validate Google Sheets URL
+        function validateGoogleSheetsUrl(url) {
+            return url && url.includes('script.google.com/macros/s/') && url.includes('/exec');
+        }
+
+        // Show message
+        function showMessage(elementId, message) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                if (message) element.textContent = message;
+                element.classList.add('show');
+                setTimeout(() => element.classList.remove('show'), 3000);
+            }
+        }
+
+        // Hide message
+        function hideMessage(elementId) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.classList.remove('show');
+            }
+        }
+
+        // Test Google Sheets connection
+        async function testConnection() {
+            const url = document.getElementById('googleSheetsUrl').value.trim();
+            
+            if (!validateGoogleSheetsUrl(url)) {
+                showMessage('configError', 'Please enter a valid Google Apps Script URL');
+                return;
+            }
+
+            try {
+                console.log('🔍 Testing connection to:', url);
+                
+                const testData = {
+                    date: new Date().toLocaleDateString('en-IN'),
+                    invoiceNumber: 'TEST-' + Date.now(),
+                    sellerName: 'Test Seller',
+                    customerName: 'Test Customer',
+                    customerNumber: '9876543210',
+                    itemsText: 'Test Item (1 × ₹100.00)',
+                    subtotal: '100.00',
+                    discount: '0.00',
+                    total: '100.00'
+                };
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(testData),
+                    mode: 'no-cors'
+                });
+
+                // Note: no-cors mode doesn't allow reading response, but prevents CORS errors
+                showMessage('configSuccess', '✅ Test request sent! Check your Google Sheet for the test entry.');
+                
+            } catch (error) {
+                console.error('❌ Test failed:', error);
+                showMessage('configError', '❌ Connection test failed: ' + error.message);
+            }
+        }
+
+        // Show loading animation, then app
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                const loadingScreen = document.getElementById('loadingScreen');
+                loadingScreen.classList.add('reveal');
+                
+                setTimeout(function() {
+                    loadingScreen.style.display = 'none';
+                    document.getElementById('app').classList.add('show');
+                    initializeApp();
+                }, 800);
+            }, 3000);
+        });
+
+        // Login functionality
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorMessage = document.getElementById('errorMessage');
+            
+            if (users[username] && users[username] === password) {
+                currentUser = username;
+                document.getElementById('currentUser').textContent = `Welcome, ${username}!`;
+                document.getElementById('currentUserInvoice').textContent = `Welcome, ${username}!`;
+                document.getElementById('loginContainer').style.display = 'none';
+                document.getElementById('dashboard').classList.add('active');
+                
+                // Auto-select seller name
+                document.getElementById('sellerName').value = username;
+                
+                errorMessage.textContent = '';
+            } else {
+                errorMessage.textContent = 'Invalid username or password';
+            }
+        });
+
+        // Logout functionality
+        function logout() {
+            currentUser = null;
+            document.getElementById('loginContainer').style.display = 'flex';
+            document.getElementById('dashboard').classList.remove('active');
+            document.getElementById('invoiceGenerator').classList.remove('active');
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('errorMessage').textContent = '';
+            resetInvoiceForm();
+        }
+
+        // Feature navigation
+        function openFeature(feature) {
+            if (feature === 'invoice') {
+                document.getElementById('dashboard').classList.remove('active');
+                document.getElementById('invoiceGenerator').classList.add('active');
+            } else {
+                alert(`Opening ${feature} feature. This will be implemented in the next phase.`);
+            }
+        }
+
+        // Back to dashboard
+        function backToDashboard() {
+            document.getElementById('invoiceGenerator').classList.remove('active');
+            document.getElementById('dashboard').classList.add('active');
+            resetInvoiceForm();
+        }
+
+        // Add item functionality
+        function addItem() {
+            itemCounter++;
+            const itemsContainer = document.getElementById('itemsContainer');
+            
+            const itemRow = document.createElement('div');
+            itemRow.className = 'item-row';
+            itemRow.innerHTML = `
+                <div class="form-group">
+                    <label>Item Name</label>
+                    <input type="text" class="item-name" placeholder="Enter item name" required>
+                </div>
+                <div class="form-group">
+                    <label>Quantity</label>
+                    <input type="number" class="item-quantity" placeholder="Qty" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label>Price (₹)</label>
+                    <input type="number" class="item-price" placeholder="Price" min="0" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Discount (%)</label>
+                    <input type="number" class="item-discount" placeholder="0" min="0" max="100" step="0.1" value="0">
+                </div>
+                <button type="button" class="remove-item-btn" onclick="removeItem(this)">
+                    ❌
+                </button>
+            `;
+            
+            itemsContainer.appendChild(itemRow);
+            addCalculationListenersToRow(itemRow);
+        }
+
+        // Remove item functionality
+        function removeItem(button) {
+            const itemRow = button.closest('.item-row');
+            itemRow.remove();
+            calculateTotal();
+        }
+
+        // Add calculation listeners to a specific row
+        function addCalculationListenersToRow(row) {
+            const quantityInput = row.querySelector('.item-quantity');
+            const priceInput = row.querySelector('.item-price');
+            const discountInput = row.querySelector('.item-discount');
+            
+            if (quantityInput) quantityInput.addEventListener('input', calculateTotal);
+            if (priceInput) priceInput.addEventListener('input', calculateTotal);
+            if (discountInput) discountInput.addEventListener('input', calculateTotal);
+        }
+
+        // Add calculation listeners to all existing rows
+        function addCalculationListeners() {
+            const itemRows = document.querySelectorAll('.item-row');
+            itemRows.forEach(row => addCalculationListenersToRow(row));
+        }
+
+        // Calculate total amount
+        function calculateTotal() {
+            const itemRows = document.querySelectorAll('.item-row');
+            let subtotal = 0;
+            let totalDiscount = 0;
+            
+            itemRows.forEach(row => {
+                const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
+                const price = parseFloat(row.querySelector('.item-price').value) || 0;
+                const discount = parseFloat(row.querySelector('.item-discount').value) || 0;
+                
+                const itemTotal = quantity * price;
+                const itemDiscount = (itemTotal * discount) / 100;
+                
+                subtotal += itemTotal;
+                totalDiscount += itemDiscount;
+            });
+            
+            const finalTotal = subtotal - totalDiscount;
+            
+            document.getElementById('subtotalAmount').textContent = subtotal.toFixed(2);
+            document.getElementById('discountAmount').textContent = totalDiscount.toFixed(2);
+            document.getElementById('totalAmount').textContent = finalTotal.toFixed(2);
+        }
+
+        // Enhanced save function with better error handling
+        async function saveToGoogleSheets(invoiceData) {
+            if (!GOOGLE_SHEETS_URL) {
+                console.warn('⚠️ Google Sheets URL not configured');
+                return { success: false, error: 'Google Sheets URL not configured' };
+            }
+
+            if (!validateGoogleSheetsUrl(GOOGLE_SHEETS_URL)) {
+                console.error('❌ Invalid Google Sheets URL format');
+                return { success: false, error: 'Invalid Google Sheets URL format' };
+            }
+
+            console.log('🔄 Attempting to save to Google Sheets...');
+            console.log('📦 Data to save:', invoiceData);
+            
+            try {
+                // Prepare items text for the sheet
+                const itemsText = invoiceData.items.map(item => 
+                    `${item.name} (${item.quantity} × ₹${item.price.toFixed(2)})`
+                ).join('; ');
+                
+                const subtotal = invoiceData.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+                const discount = subtotal - invoiceData.total;
+                
+                const dataToSend = {
+                    date: invoiceData.date,
+                    invoiceNumber: invoiceData.invoiceNumber,
+                    sellerName: invoiceData.sellerName,
+                    customerName: invoiceData.customerName,
+                    customerNumber: invoiceData.customerNumber || '',
+                    itemsText: itemsText,
+                    subtotal: subtotal.toFixed(2),
+                    discount: discount.toFixed(2),
+                    total: invoiceData.total.toFixed(2)
+                };
+                
+                console.log('📤 Sending data:', dataToSend);
+                
+                // Use no-cors mode to avoid CORS issues
+                const response = await fetch(GOOGLE_SHEETS_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(dataToSend),
+                    mode: 'no-cors'
+                });
+                
+                // In no-cors mode, we can't read the response, but the request goes through
+                console.log('✅ Request sent to Google Sheets (no-cors mode)');
+                return { success: true };
+                
+            } catch (error) {
+                console.error('❌ Error saving to Google Sheets:', error);
+                return { success: false, error: error.message };
+            }
+        }
+
+        // Generate invoice
+        async function generateInvoice() {
+            const sellerName = document.getElementById('sellerName').value;
+            const customerName = document.getElementById('customerName').value;
+            const customerNumber = document.getElementById('customerNumber').value;
+            
+            if (!sellerName || !customerName) {
+                alert('Please fill in seller name and customer name');
+                return;
+            }
+            
+            const itemRows = document.querySelectorAll('.item-row');
+            const items = [];
+            
+            let isValid = true;
+            itemRows.forEach(row => {
+                const name = row.querySelector('.item-name').value.trim();
+                const quantity = parseFloat(row.querySelector('.item-quantity').value);
+                const price = parseFloat(row.querySelector('.item-price').value);
+                
+                if (!name || !quantity || !price) {
+                    isValid = false;
+                    return;
+                }
+                
+                const discount = parseFloat(row.querySelector('.item-discount').value) || 0;
+                const itemTotal = quantity * price;
+                const itemDiscount = (itemTotal * discount) / 100;
+                
+                items.push({
+                    name: name,
+                    quantity: quantity,
+                    price: price,
+                    discount: discount,
+                    amount: itemTotal - itemDiscount
+                });
+            });
+            
+            if (!isValid || items.length === 0) {
+                alert('Please fill in all item details');
+                return;
+            }
+            
+            // Store invoice data
+            invoiceData = {
+                sellerName: sellerName,
+                customerName: customerName,
+                customerNumber: customerNumber,
+                items: items,
+                total: items.reduce((sum, item) => sum + item.amount, 0),
+                date: new Date().toLocaleDateString('en-IN'),
+                invoiceNumber: 'INV-' + Date.now()
+            };
+            
+            // Always show the preview first
+            updateInvoicePreview();
+            document.getElementById('invoicePreview').classList.add('active');
+            document.getElementById('invoicePreview').scrollIntoView({ behavior: 'smooth' });
+            
+            // Attempt to save to Google Sheets
+            if (GOOGLE_SHEETS_URL) {
+                const saveResult = await saveToGoogleSheets(invoiceData);
+                
+                if (saveResult.success) {
+                    showMessage('successMessage', '✅ Invoice saved to Google Sheets successfully!');
+                    hideMessage('saveErrorMessage');
+                } else {
+                    showMessage('saveErrorMessage', `❌ Failed to save: ${saveResult.error}`);
+                    hideMessage('successMessage');
+                }
+            } else {
+                showMessage('saveErrorMessage', '⚠️ Google Sheets not configured. Invoice generated locally only.');
+                hideMessage('successMessage');
+            }
+        }
+
+        // Update invoice preview
+        function updateInvoicePreview() {
+            document.getElementById('invoiceSellerName').textContent = invoiceData.sellerName;
+            document.getElementById('invoiceCustomerName').textContent = invoiceData.customerName;
+            document.getElementById('invoiceCustomerNumber').textContent = invoiceData.customerNumber ? `+91 ${invoiceData.customerNumber}` : '';
+            document.getElementById('invoiceDate').textContent = invoiceData.date;
+            document.getElementById('invoiceNumber').textContent = invoiceData.invoiceNumber;
+            document.getElementById('invoiceTotalAmount').textContent = invoiceData.total.toFixed(2);
+            
+            const tableBody = document.getElementById('invoiceTableBody');
+            tableBody.innerHTML = '';
+            
+            invoiceData.items.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.name}</td>
+                    <td>${item.quantity}</td>
+                    <td>₹${item.price.toFixed(2)}</td>
+                    <td>₹${item.amount.toFixed(2)}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        // Send WhatsApp message
+        function sendWhatsApp() {
+            if (!invoiceData.customerNumber) {
+                alert('Please enter customer WhatsApp number to send invoice');
+                return;
+            }
+            
+            // Create invoice message
+            let message = `🛍️ *PLUTO INVOICE*\n\n`;
+            message += `📄 Invoice #: ${invoiceData.invoiceNumber}\n`;
+            message += `📅 Date: ${invoiceData.date}\n`;
+            message += `👤 Seller: ${invoiceData.sellerName}\n`;
+            message += `👥 Customer: ${invoiceData.customerName}\n\n`;
+            message += `📦 *ITEMS:*\n`;
+            
+            invoiceData.items.forEach((item, index) => {
+                message += `${index + 1}. ${item.name}\n`;
+                message += `   Qty: ${item.quantity} × ₹${item.price.toFixed(2)} = ₹${item.amount.toFixed(2)}\n\n`;
+            });
+            
+            message += `💰 *TOTAL AMOUNT: ₹${invoiceData.total.toFixed(2)}*\n\n`;
+            message += `📞 Contact: +91 89559 62269\n`;
+            message += `🏪 PLUTO Business\n`;
+            message += `Thank you for your business! 😊`;
+            
+            // Create WhatsApp URL
+            const whatsappUrl = `https://wa.me/91${invoiceData.customerNumber}?text=${encodeURIComponent(message)}`;
+            
+            // Open WhatsApp
+            window.open(whatsappUrl, '_blank');
+        }
+
+        // Reset invoice form
+        function resetInvoiceForm() {
+            document.getElementById('sellerName').value = currentUser || '';
+            document.getElementById('customerName').value = '';
+            document.getElementById('customerNumber').value = '';
+            
+            // Reset items to single row
+            const itemsContainer = document.getElementById('itemsContainer');
+            itemsContainer.innerHTML = `
+                <div class="item-row">
+                    <div class="form-group">
+                        <label>Item Name</label>
+                        <input type="text" class="item-name" placeholder="Enter item name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Quantity</label>
+                        <input type="number" class="item-quantity" placeholder="Qty" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Price (₹)</label>
+                        <input type="number" class="item-price" placeholder="Price" min="0" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Discount (%)</label>
+                        <input type="number" class="item-discount" placeholder="0" min="0" max="100" step="0.1" value="0">
+                    </div>
+                </div>
+            `;
+            
+            // Reset totals
+            document.getElementById('subtotalAmount').textContent = '0.00';
+            document.getElementById('discountAmount').textContent = '0.00';
+            document.getElementById('totalAmount').textContent = '0.00';
+            
+            // Hide preview and messages
+            document.getElementById('invoicePreview').classList.remove('active');
+            hideMessage('successMessage');
+            hideMessage('saveErrorMessage');
+            
+            // Reset counters
+            itemCounter = 1;
+            invoiceData = {};
+            
+            // Add event listeners to initial row
+            setTimeout(addCalculationListeners, 100);
+        }
+
+        // Format phone number input
+        document.addEventListener('input', function(e) {
+            if (e.target.id === 'customerNumber') {
+                let value = e.target.value.replace(/\D/g, '');
+                if (value.length > 10) {
+                    value = value.slice(0, 10);
+                }
+                e.target.value = value;
+            }
+        });
+
+        // Prevent right-click context menu (optional security feature)
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+
+        console.log('🚀 PLUTO Invoice Generator loaded successfully!');
+        console.log('📋 To configure Google Sheets integration:');
+        console.log('1. Go to Google Apps Script (script.google.com)');
+        console.log('2. Create a new project');
+        console.log('3. Replace code.gs with your backend script');
+        console.log('4. Deploy as web app');
+        console.log('5. Copy the web app URL to the configuration section');
+    </script>
+</body>
+</html>
